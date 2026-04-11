@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DK Stock Screener</title>
+  <link rel="stylesheet" href="css/colors.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a0f">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>DK Stock Screener</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" id="btnSync">Sync All</button>
+      </div>
+    </header>
+
+    <div id="segmentTabs" class="segment-tabs"></div>
+    <div id="statusBar" class="status-bar">Loading...</div>
+    <div id="stockTable"></div>
+  </div>
+
+  <!-- Detail slide-in panel -->
+  <div id="overlay" class="overlay"></div>
+  <div id="detailPanel" class="detail-panel"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

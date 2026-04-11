@@ -1,0 +1,223 @@
+"""
+SQLite storage backend.
+
+Single file database — easy to back up, fast for time-series data.
+"""
+
+import sqlite3
+from datetime import date
+
+from .base import StorageBackend
+
+
+class SqliteStorage(StorageBackend):
+
+    def __init__(self, db_path: str = "data/stocks.db"):
+        self.db_path = db_path
+        self._init_db()
+
+    def _conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
+
+    def _init_db(self):
+        with self._conn() as conn:
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS stocks (
+                    ticker TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    segment TEXT NOT NULL,
+                    industry TEXT,
+                    product TEXT
+                );
+
+                CREATE TABLE IF NOT EXISTS prices (
+                    ticker TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    open REAL,
+                    high REAL,
+                    low REAL,
+                    close REAL,
+                    volume INTEGER,
+                    PRIMARY KEY (ticker, date)
+                );
+
+                CREATE TABLE IF NOT EXISTS fundamentals (
+                    ticker TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    price REAL,
+                    market_cap REAL,
+                    trailing_pe REAL,
+                    forward_pe REAL,
+                    pb REAL,
+                    roe REAL,
+                    operating_margin REAL,
+                    net_margin REAL,
+                    debt_equity REAL,
+                    ev_ebitda REAL,
+                    fcf REAL,
+                    fcf_yield REAL,
+                    dividend_rate REAL,
+                    dividend_yield REAL,
+                    payout_ratio REAL,
+                    PRIMARY KEY (ticker, date)
+                );
+
+                CREATE TABLE IF NOT EXISTS scores (
+                    ticker TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    momentum REAL,
+                    valuation REAL,
+                    revisions REAL,
+                    total REAL,
+                    PRIMARY KEY (ticker, date)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_prices_ticker_date
+                    ON prices (ticker, date);
+                CREATE INDEX IF NOT EXISTS idx_scores_date
+                    ON scores (date);
+            """)
+
+    # --- Stocks ---
+
+    def upsert_stock(self, ticker: str, name: str, segment: str,
+                     industry: str | None = None, product: str | None = None) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO stocks (ticker, name, segment, industry, product)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(ticker) DO UPDATE SET
+                    name=excluded.name, segment=excluded.segment,
+                    industry=COALESCE(excluded.industry, stocks.industry),
+                    product=COALESCE(excluded.product, stocks.product)
+            """, (ticker, name, segment, industry, product))
+
+    def get_stocks(self) -> list[dict]:
+        with self._conn() as conn:
+            rows = conn.execute("SELECT * FROM stocks ORDER BY segment, ticker").fetchall()
+            return [dict(r) for r in rows]
+
+    def get_stock(self, ticker: str) -> dict | None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT * FROM stocks WHERE ticker = ?", (ticker,)).fetchone()
+            return dict(row) if row else None
+
+    # --- Prices ---
+
+    def upsert_prices(self, ticker: str, rows: list[dict]) -> int:
+        if not rows:
+            return 0
+        with self._conn() as conn:
+            conn.executemany("""
+                INSERT INTO prices (ticker, date, open, high, low, close, volume)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(ticker, date) DO UPDATE SET
+                    open=excluded.open, high=excluded.high,
+                    low=excluded.low, close=excluded.close,
+                    volume=excluded.volume
+            """, [(ticker, r["date"], r.get("open"), r.get("high"),
+                   r.get("low"), r.get("close"), r.get("volume")) for r in rows])
+        return len(rows)
+
+    def get_prices(self, ticker: str, start: date | None = None,
+                   end: date | None = None) -> list[dict]:
+        query = "SELECT * FROM prices WHERE ticker = ?"
+        params: list = [ticker]
+        if start:
+            query += " AND date >= ?"
+            params.append(start.isoformat())
+        if end:
+            query += " AND date <= ?"
+            params.append(end.isoformat())
+        query += " ORDER BY date"
+        with self._conn() as conn:
+            rows = conn.execute(query, params).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_latest_price_date(self, ticker: str) -> str | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT MAX(date) as d FROM prices WHERE ticker = ?", (ticker,)
+            ).fetchone()
+            return row["d"] if row else None
+
+    # --- Fundamentals ---
+
+    def upsert_fundamentals(self, ticker: str, data: dict) -> None:
+        today = date.today().isoformat()
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO fundamentals (ticker, date, price, market_cap, trailing_pe,
+                    forward_pe, pb, roe, operating_margin, net_margin, debt_equity,
+                    ev_ebitda, fcf, fcf_yield, dividend_rate, dividend_yield, payout_ratio)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(ticker, date) DO UPDATE SET
+                    price=excluded.price, market_cap=excluded.market_cap,
+                    trailing_pe=excluded.trailing_pe, forward_pe=excluded.forward_pe,
+                    pb=excluded.pb, roe=excluded.roe,
+                    operating_margin=excluded.operating_margin,
+                    net_margin=excluded.net_margin, debt_equity=excluded.debt_equity,
+                    ev_ebitda=excluded.ev_ebitda, fcf=excluded.fcf,
+                    fcf_yield=excluded.fcf_yield, dividend_rate=excluded.dividend_rate,
+                    dividend_yield=excluded.dividend_yield,
+                    payout_ratio=excluded.payout_ratio
+            """, (ticker, today, data.get("price"), data.get("market_cap"),
+                  data.get("trailing_pe"), data.get("forward_pe"),
+                  data.get("pb"), data.get("roe"),
+                  data.get("operating_margin"), data.get("net_margin"),
+                  data.get("debt_equity"), data.get("ev_ebitda"),
+                  data.get("fcf"), data.get("fcf_yield"),
+                  data.get("dividend_rate"), data.get("dividend_yield"),
+                  data.get("payout_ratio")))
+
+    def get_fundamentals(self, ticker: str) -> dict | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM fundamentals WHERE ticker = ? ORDER BY date DESC LIMIT 1",
+                (ticker,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    # --- Scores ---
+
+    def upsert_score(self, ticker: str, date_str: str, momentum: float | None = None,
+                     valuation: float | None = None, revisions: float | None = None,
+                     total: float | None = None) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO scores (ticker, date, momentum, valuation, revisions, total)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(ticker, date) DO UPDATE SET
+                    momentum=COALESCE(excluded.momentum, scores.momentum),
+                    valuation=COALESCE(excluded.valuation, scores.valuation),
+                    revisions=COALESCE(excluded.revisions, scores.revisions),
+                    total=excluded.total
+            """, (ticker, date_str, momentum, valuation, revisions, total))
+
+    def get_scores(self, date_str: str | None = None) -> list[dict]:
+        with self._conn() as conn:
+            if date_str:
+                rows = conn.execute(
+                    "SELECT * FROM scores WHERE date = ? ORDER BY total DESC", (date_str,)
+                ).fetchall()
+            else:
+                # Latest date
+                latest = conn.execute("SELECT MAX(date) as d FROM scores").fetchone()
+                if not latest or not latest["d"]:
+                    return []
+                rows = conn.execute(
+                    "SELECT * FROM scores WHERE date = ? ORDER BY total DESC",
+                    (latest["d"],)
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_score_history(self, ticker: str, limit: int = 30) -> list[dict]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM scores WHERE ticker = ? ORDER BY date DESC LIMIT ?",
+                (ticker, limit)
+            ).fetchall()
+            return [dict(r) for r in rows]
