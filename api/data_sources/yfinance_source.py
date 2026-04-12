@@ -5,6 +5,7 @@ IMPORTANT: Uses auto_adjust=False for raw prices (adjusted prices break around e
 """
 
 import sys
+import time
 from datetime import date, timedelta
 
 import yfinance as yf
@@ -121,5 +122,8 @@ def fetch_all(storage, progress_callback=None) -> dict:
 
         except Exception as e:
             print(f"[{i}/{total}] ERROR: {short} - {e}", file=sys.stderr)
+
+        # Rate limit: small delay between requests to avoid Yahoo throttling
+        time.sleep(1.5)
 
     return {"prices_rows": prices_count, "fundamentals_updated": fundamentals_count}
