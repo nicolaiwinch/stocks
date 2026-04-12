@@ -121,9 +121,25 @@ def fetch_all(storage, progress_callback=None) -> dict:
             fundamentals_count += 1
 
         except Exception as e:
-            print(f"[{i}/{total}] ERROR: {short} - {e}", file=sys.stderr)
+            msg = str(e)
+            print(f"[{i}/{total}] ERROR: {short} - {msg}", file=sys.stderr)
 
-        # Rate limit: small delay between requests to avoid Yahoo throttling
-        time.sleep(1.5)
+            # If rate limited, wait longer before retrying
+            if "Rate" in msg or "429" in msg or "Too Many" in msg:
+                print(f"[{i}/{total}] Rate limited, waiting 10s...", file=sys.stderr)
+                time.sleep(10)
+                try:
+                    rows = fetch_prices(yf_ticker)
+                    if rows:
+                        prices_count += storage.upsert_prices(short, rows)
+                    fundamentals = fetch_fundamentals(yf_ticker)
+                    storage.upsert_fundamentals(short, fundamentals)
+                    fundamentals_count += 1
+                    print(f"[{i}/{total}] {short} retry OK", file=sys.stderr)
+                except Exception as e2:
+                    print(f"[{i}/{total}] {short} retry failed: {e2}", file=sys.stderr)
+
+        # Rate limit: delay between requests to avoid Yahoo throttling
+        time.sleep(2)
 
     return {"prices_rows": prices_count, "fundamentals_updated": fundamentals_count}
