@@ -1,9 +1,10 @@
 """
-Momentum scoring — migrated from calc_momentum.py.
+Momentum scoring — 5-factor model.
 
-7-factor model:
-  1W (10%) + 1M (15%) + 3M (25%) + 6M (25%) +
-  vs 200d MA (15%) + vs 50d MA (10%) + Drawdown from 1M high (10%)
+Price-based:
+  6M Return (20%) + 12M Return (20%) + 12-1M Return (25%)
+Trend / Moving Averages:
+  Price vs 200d MA (20%) + 50d MA vs 200d MA (15%)
 
 Score range: 1-10 via percentile ranking across all stocks.
 """
@@ -27,41 +28,109 @@ def calculate_momentum_metrics(prices: list[dict]) -> dict:
     Prices must be sorted by date ascending.
     Uses raw prices (not adjusted for dividends).
     """
-    if len(prices) < 10:
-        return {"m1w": None, "m1": None, "m3": None, "m6": None,
-                "vs_ma200": None, "vs_ma50": None, "drawdown_1m": None}
+    closes = [p["close"] for p in prices if p["close"] is not None]
 
-    closes = [p["close"] for p in prices]
+    if len(closes) < 10:
+        return {
+            "m6": None, "m12": None, "m12_1": None,
+            "vs_ma200": None, "ma50_vs_ma200": None,
+        }
     current = closes[-1]
 
-    m1w = ((current - closes[-5]) / closes[-5] * 100) if len(closes) > 5 else None
-    m1 = ((current - closes[-21]) / closes[-21] * 100) if len(closes) > 21 else None
-    m3 = ((current - closes[-63]) / closes[-63] * 100) if len(closes) > 63 else None
+    # Price-based
     m6 = ((current - closes[-126]) / closes[-126] * 100) if len(closes) > 126 else None
+    m12 = ((current - closes[-252]) / closes[-252] * 100) if len(closes) > 252 else None
 
+    # 12-1M: 12-month return but skip the most recent month (reduces reversal noise)
+    m12_1 = None
+    if len(closes) > 252:
+        price_1m_ago = closes[-21]
+        price_12m_ago = closes[-252]
+        m12_1 = (price_1m_ago - price_12m_ago) / price_12m_ago * 100
+
+    # Trend / Moving averages
     vs_ma200 = None
     if len(closes) >= 200:
         ma200 = sum(closes[-200:]) / 200
         vs_ma200 = (current - ma200) / ma200 * 100
 
-    vs_ma50 = None
-    if len(closes) >= 50:
+    ma50_vs_ma200 = None
+    if len(closes) >= 200:
         ma50 = sum(closes[-50:]) / 50
-        vs_ma50 = (current - ma50) / ma50 * 100
-
-    drawdown_1m = None
-    if len(closes) > 21:
-        high_1m = max(closes[-21:])
-        drawdown_1m = (current - high_1m) / high_1m * 100
+        ma200 = sum(closes[-200:]) / 200
+        ma50_vs_ma200 = (ma50 - ma200) / ma200 * 100
 
     return {
-        "m1w": round(m1w, 1) if m1w is not None else None,
-        "m1": round(m1, 1) if m1 is not None else None,
-        "m3": round(m3, 1) if m3 is not None else None,
-        "m6": round(m6, 1) if m6 is not None else None,
-        "vs_ma200": round(vs_ma200, 1) if vs_ma200 is not None else None,
-        "vs_ma50": round(vs_ma50, 1) if vs_ma50 is not None else None,
-        "drawdown_1m": round(drawdown_1m, 1) if drawdown_1m is not None else None,
+        "m6": round(m6, 2) if m6 is not None else None,
+        "m12": round(m12, 2) if m12 is not None else None,
+        "m12_1": round(m12_1, 2) if m12_1 is not None else None,
+        "vs_ma200": round(vs_ma200, 2) if vs_ma200 is not None else None,
+        "ma50_vs_ma200": round(ma50_vs_ma200, 2) if ma50_vs_ma200 is not None else None,
+    }
+
+
+# Factor definitions: (metric_key, weight)
+FACTORS = [
+    ("m6", 0.20),
+    ("m12", 0.20),
+    ("m12_1", 0.25),
+    ("vs_ma200", 0.20),
+    ("ma50_vs_ma200", 0.15),
+]
+
+
+def explain_momentum(ticker: str, metrics: dict, all_metrics: dict[str, dict]) -> dict:
+    """
+    Return full calculation breakdown for a single stock.
+    Shows each factor's raw value, percentile rank, weight, and contribution.
+    """
+    all_values = {
+        key: [m[key] for m in all_metrics.values()]
+        for key, _ in FACTORS
+    }
+
+    factor_names = {
+        "m6": "6M Return",
+        "m12": "12M Return",
+        "m12_1": "12-1M Return",
+        "vs_ma200": "Price vs 200d MA",
+        "ma50_vs_ma200": "50d MA vs 200d MA",
+    }
+
+    breakdown = []
+    parts = []
+    weights = []
+
+    for key, weight in FACTORS:
+        raw = metrics.get(key)
+        rank = percentile_rank(all_values[key], raw)
+        contribution = None
+        if rank is not None:
+            contribution = round(rank * weight, 4)
+            parts.append(rank * weight)
+            weights.append(weight)
+
+        breakdown.append({
+            "factor": factor_names.get(key, key),
+            "key": key,
+            "value": raw,
+            "percentile": round(rank, 3) if rank is not None else None,
+            "weight": f"{int(weight * 100)}%",
+            "contribution": contribution,
+        })
+
+    if weights:
+        raw_score = sum(parts) / sum(weights)
+        final_score = round(raw_score * 9 + 1, 1)
+    else:
+        raw_score = None
+        final_score = None
+
+    return {
+        "ticker": ticker,
+        "score": final_score,
+        "factors": breakdown,
+        "total_stocks": len(all_metrics),
     }
 
 
@@ -72,36 +141,25 @@ def score_momentum(all_metrics: dict[str, dict]) -> dict[str, float | None]:
 
     Returns {ticker: score}.
     """
-    all_m1w = [m["m1w"] for m in all_metrics.values()]
-    all_m1 = [m["m1"] for m in all_metrics.values()]
-    all_m3 = [m["m3"] for m in all_metrics.values()]
-    all_m6 = [m["m6"] for m in all_metrics.values()]
-    all_ma200 = [m["vs_ma200"] for m in all_metrics.values()]
-    all_ma50 = [m["vs_ma50"] for m in all_metrics.values()]
-    all_dd = [m["drawdown_1m"] for m in all_metrics.values()]
+    # Pre-collect all values per factor for ranking
+    all_values = {
+        key: [m[key] for m in all_metrics.values()]
+        for key, _ in FACTORS
+    }
 
     scores = {}
     for ticker, m in all_metrics.items():
-        components = [
-            (percentile_rank(all_m1w, m["m1w"]), 0.10),
-            (percentile_rank(all_m1, m["m1"]), 0.15),
-            (percentile_rank(all_m3, m["m3"]), 0.25),
-            (percentile_rank(all_m6, m["m6"]), 0.25),
-            (percentile_rank(all_ma200, m["vs_ma200"]), 0.15),
-            (percentile_rank(all_ma50, m["vs_ma50"]), 0.10),
-            (percentile_rank(all_dd, m["drawdown_1m"]), 0.10),
-        ]
-
         parts = []
         weights = []
-        for p, w in components:
-            if p is not None:
-                parts.append(p * w)
-                weights.append(w)
+        for key, weight in FACTORS:
+            rank = percentile_rank(all_values[key], m[key])
+            if rank is not None:
+                parts.append(rank * weight)
+                weights.append(weight)
 
         if weights:
             raw = sum(parts) / sum(weights)
-            scores[ticker] = round(raw * 9 + 1, 1)
+            scores[ticker] = round(raw * 9 + 1, 1)  # Scale 0-1 → 1-10
         else:
             scores[ticker] = None
 

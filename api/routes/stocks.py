@@ -1,10 +1,17 @@
 """Stock list and detail routes."""
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from config import STORAGE
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
+
+
+class AddStockRequest(BaseModel):
+    ticker: str
+    name: str
+    segment: str = "Watchlist"
 
 
 @router.get("/")
@@ -52,3 +59,23 @@ def get_score_history(ticker: str, limit: int = 30) -> list[dict]:
     if not stock:
         raise HTTPException(status_code=404, detail="Stock not found")
     return STORAGE.get_score_history(ticker, limit=limit)
+
+
+@router.post("/")
+def add_stock(req: AddStockRequest) -> dict:
+    """Add a stock to the watchlist."""
+    ticker = req.ticker.upper()
+    if not ticker.endswith(".CO"):
+        ticker += ".CO"
+    STORAGE.upsert_stock(ticker, req.name, req.segment)
+    return {"ticker": ticker, "name": req.name, "segment": req.segment}
+
+
+@router.delete("/{ticker}")
+def remove_stock(ticker: str) -> dict:
+    """Remove a stock from the watchlist."""
+    stock = STORAGE.get_stock(ticker)
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not found")
+    STORAGE.delete_stock(ticker)
+    return {"deleted": ticker}

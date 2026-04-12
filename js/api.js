@@ -30,6 +30,27 @@ export function getScoreHistory(ticker, limit = 30) {
   return request(`/api/stocks/${ticker}/scores?limit=${limit}`);
 }
 
+export function addStock(ticker, name, segment = 'Watchlist') {
+  return request('/api/stocks/', {
+    method: 'POST',
+    body: JSON.stringify({ ticker, name, segment }),
+  });
+}
+
+export function removeStock(ticker) {
+  return request(`/api/stocks/${encodeURIComponent(ticker)}`, { method: 'DELETE' });
+}
+
+// --- Momentum ---
+
+export function getMomentum() {
+  return request('/api/momentum/');
+}
+
+export function explainMomentum(ticker) {
+  return request(`/api/momentum/${encodeURIComponent(ticker)}/explain`);
+}
+
 // --- Prices ---
 
 export function getPrices(ticker, days = 365) {
@@ -56,4 +77,26 @@ export function syncSheetsPull() {
 
 export function syncFull() {
   return request('/api/sync/full', { method: 'POST' });
+}
+
+export function syncStatus() {
+  return request('/api/sync/status');
+}
+
+// --- Reports ---
+
+export function getReports() {
+  return request('/api/reports/');
+}
+
+export function getReport(id) {
+  return request(`/api/reports/${id}`);
+}
+
+export function deleteReport(id) {
+  return request(`/api/reports/${id}`, { method: 'DELETE' });
+}
+
+export function getSkillInfo() {
+  return request('/api/reports/skill/info');
 }

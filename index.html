@@ -11,17 +11,86 @@
   <meta name="theme-color" content="#0a0a0f">
 </head>
 <body>
-  <div class="container">
+  <!-- Navigation -->
+  <nav class="main-nav">
+    <div class="nav-inner">
+      <span class="nav-brand">DK Stock Screener</span>
+      <div class="nav-links">
+        <a href="#" class="nav-link active" data-page="home">Home</a>
+        <a href="#" class="nav-link" data-page="momentum">Momentum</a>
+        <a href="#" class="nav-link" data-page="reports">Reports</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page: Home -->
+  <div class="container page" id="page-home">
     <header>
-      <h1>DK Stock Screener</h1>
+      <h1>My Stocks</h1>
       <div class="header-actions">
+        <button class="btn" id="btnAddStock">+ Add</button>
         <button class="btn btn-primary" id="btnSync">Sync All</button>
       </div>
     </header>
 
+    <form id="addStockForm" class="add-stock-form hidden">
+      <input type="text" id="addTicker" placeholder="Ticker (e.g. NOVO-B)" required>
+      <input type="text" id="addName" placeholder="Company name" required>
+      <select id="addSegment">
+        <option value="C25">C25</option>
+        <option value="Large Cap">Large Cap</option>
+        <option value="Mid Cap">Mid Cap</option>
+        <option value="Small Cap">Small Cap</option>
+        <option value="Watchlist" selected>Watchlist</option>
+      </select>
+      <button type="submit" class="btn btn-primary">Add</button>
+      <button type="button" class="btn" id="btnCancelAdd">Cancel</button>
+    </form>
+
     <div id="segmentTabs" class="segment-tabs"></div>
     <div id="statusBar" class="status-bar">Loading...</div>
     <div id="stockTable"></div>
+  </div>
+
+  <!-- Page: Momentum -->
+  <div class="container page hidden" id="page-momentum">
+    <header>
+      <h1>Momentum</h1>
+    </header>
+
+    <div id="momentumStatusBar" class="status-bar">Loading...</div>
+    <h2 class="section-title" style="margin-top:8px">Momentum Ranking</h2>
+    <div id="momentumTable"></div>
+
+    <section class="score-model-section" style="margin-top:32px">
+      <h2 class="section-title">Total Momentum Score — Based On</h2>
+      <div id="scoreModel"></div>
+    </section>
+
+    <section class="factors-section" style="margin-top:32px">
+      <h2 class="section-title">Potential Factors to Measure</h2>
+      <p class="section-desc">Blue = used in scoring, grey = not yet implemented.</p>
+      <div id="factorGroups"></div>
+    </section>
+  </div>
+
+  <!-- Page: Reports -->
+  <div class="container page hidden" id="page-reports">
+    <header>
+      <h1>Reports</h1>
+    </header>
+
+    <!-- Report list view -->
+    <div id="reportList"></div>
+
+    <!-- Skill info section -->
+    <div id="skillSection"></div>
+
+    <!-- Single report view (hidden by default) -->
+    <div id="reportDetail" class="hidden">
+      <button class="btn" id="btnBackToReports">&larr; All Reports</button>
+      <div id="reportContent" class="report-content"></div>
+    </div>
   </div>
 
   <!-- Detail slide-in panel -->

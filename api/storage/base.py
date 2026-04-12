@@ -24,6 +24,10 @@ class StorageBackend(ABC):
     def get_stock(self, ticker: str) -> dict | None:
         """Get a single stock by ticker."""
 
+    @abstractmethod
+    def delete_stock(self, ticker: str) -> None:
+        """Remove a stock and all its related data."""
+
     # --- Prices ---
 
     @abstractmethod

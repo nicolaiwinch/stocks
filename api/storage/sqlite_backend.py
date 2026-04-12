@@ -75,6 +75,24 @@ class SqliteStorage(StorageBackend):
                     PRIMARY KEY (ticker, date)
                 );
 
+                CREATE TABLE IF NOT EXISTS momentum_details (
+                    ticker TEXT PRIMARY KEY,
+                    m6 REAL,
+                    m12 REAL,
+                    m12_1 REAL,
+                    vs_ma200 REAL,
+                    ma50_vs_ma200 REAL,
+                    score REAL,
+                    updated TEXT
+                );
+
+                CREATE TABLE IF NOT EXISTS sync_log (
+                    id INTEGER PRIMARY KEY,
+                    timestamp TEXT NOT NULL,
+                    prices_rows INTEGER,
+                    scores_calculated INTEGER
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_prices_ticker_date
                     ON prices (ticker, date);
                 CREATE INDEX IF NOT EXISTS idx_scores_date
@@ -104,6 +122,13 @@ class SqliteStorage(StorageBackend):
         with self._conn() as conn:
             row = conn.execute("SELECT * FROM stocks WHERE ticker = ?", (ticker,)).fetchone()
             return dict(row) if row else None
+
+    def delete_stock(self, ticker: str) -> None:
+        with self._conn() as conn:
+            conn.execute("DELETE FROM prices WHERE ticker = ?", (ticker,))
+            conn.execute("DELETE FROM fundamentals WHERE ticker = ?", (ticker,))
+            conn.execute("DELETE FROM scores WHERE ticker = ?", (ticker,))
+            conn.execute("DELETE FROM stocks WHERE ticker = ?", (ticker,))
 
     # --- Prices ---
 
@@ -221,3 +246,49 @@ class SqliteStorage(StorageBackend):
                 (ticker, limit)
             ).fetchall()
             return [dict(r) for r in rows]
+
+    # --- Momentum details ---
+
+    def upsert_momentum_detail(self, ticker: str, metrics: dict,
+                                score: float | None, date_str: str) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO momentum_details (ticker, m6, m12, m12_1, vs_ma200, ma50_vs_ma200, score, updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(ticker) DO UPDATE SET
+                    m6=excluded.m6, m12=excluded.m12, m12_1=excluded.m12_1,
+                    vs_ma200=excluded.vs_ma200, ma50_vs_ma200=excluded.ma50_vs_ma200,
+                    score=excluded.score, updated=excluded.updated
+            """, (ticker, metrics.get("m6"), metrics.get("m12"), metrics.get("m12_1"),
+                  metrics.get("vs_ma200"), metrics.get("ma50_vs_ma200"), score, date_str))
+
+    def get_momentum_details(self) -> list[dict]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM momentum_details ORDER BY score DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_momentum_detail(self, ticker: str) -> dict | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM momentum_details WHERE ticker = ?", (ticker,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    # --- Sync log ---
+
+    def log_sync(self, timestamp: str, prices_rows: int = 0,
+                 scores_calculated: int = 0) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO sync_log (timestamp, prices_rows, scores_calculated)
+                VALUES (?, ?, ?)
+            """, (timestamp, prices_rows, scores_calculated))
+
+    def get_last_sync(self) -> dict | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM sync_log ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            return dict(row) if row else None

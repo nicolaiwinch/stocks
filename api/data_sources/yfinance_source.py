@@ -12,7 +12,7 @@ import yfinance as yf
 from stocks import STOCKS, ticker_short
 
 
-def fetch_prices(yf_ticker: str, period: str = "1y") -> list[dict]:
+def fetch_prices(yf_ticker: str, period: str = "2y") -> list[dict]:
     """
     Fetch daily price history. Returns list of dicts with
     date, open, high, low, close, volume.
