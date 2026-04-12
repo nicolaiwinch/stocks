@@ -1,4 +1,4 @@
-export const API_URL = localStorage.getItem('api_url') || 'http://localhost:8000';
+export const API_URL = localStorage.getItem('api_url') || 'https://stock-screener-production-8ae6.up.railway.app';
 
 export const SEGMENTS = ['All', 'C25', 'Large Cap', 'Mid Cap', 'Small Cap', 'Watchlist'];
 
