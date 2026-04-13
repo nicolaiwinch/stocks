@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from config import STORAGE
 from data_sources.yfinance_source import fetch_all
 from scoring.momentum import calculate_momentum_metrics, score_momentum
+from scoring.valuation import score_valuation
+from scoring.total import calculate_total
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
@@ -36,27 +38,42 @@ def fetch_data() -> dict:
 
 @router.post("/scores")
 def recalculate_scores() -> dict:
-    """Recalculate scores from stored data. Only momentum for now."""
+    """Recalculate all scores: momentum + valuation → total."""
     today = date.today().isoformat()
     stocks = STORAGE.get_stocks()
 
     # --- Momentum ---
-    all_metrics = {}
+    all_momentum_metrics = {}
     for stock in stocks:
         ticker = stock["ticker"]
         prices = STORAGE.get_prices(ticker)
         metrics = calculate_momentum_metrics(prices)
-        all_metrics[ticker] = metrics
+        all_momentum_metrics[ticker] = metrics
 
-    momentum_scores = score_momentum(all_metrics)
+    momentum_scores = score_momentum(all_momentum_metrics)
 
-    # --- Save scores + momentum details ---
+    # --- Valuation ---
+    all_fundamentals = {}
+    for stock in stocks:
+        ticker = stock["ticker"]
+        fund = STORAGE.get_fundamentals(ticker)
+        if fund:
+            all_fundamentals[ticker] = fund
+
+    valuation_scores, valuation_details = score_valuation(all_fundamentals)
+
+    # --- Save scores + details ---
     count = 0
     for stock in stocks:
         ticker = stock["ticker"]
         mom = momentum_scores.get(ticker)
-        STORAGE.upsert_score(ticker, today, momentum=mom, total=mom)
-        STORAGE.upsert_momentum_detail(ticker, all_metrics[ticker], mom, today)
+        val = valuation_scores.get(ticker)
+        total = calculate_total(mom, None, val)  # revisions not yet built
+
+        STORAGE.upsert_score(ticker, today, momentum=mom, valuation=val, total=total)
+        STORAGE.upsert_momentum_detail(ticker, all_momentum_metrics[ticker], mom, today)
+        if ticker in valuation_details:
+            STORAGE.upsert_valuation_detail(ticker, valuation_details[ticker], val, today)
         count += 1
 
     return {"scores_calculated": count, "date": today}

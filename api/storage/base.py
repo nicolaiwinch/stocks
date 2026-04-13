@@ -68,3 +68,18 @@ class StorageBackend(ABC):
     @abstractmethod
     def get_score_history(self, ticker: str, limit: int = 30) -> list[dict]:
         """Get score history for a ticker."""
+
+    # --- Valuation details ---
+
+    @abstractmethod
+    def upsert_valuation_detail(self, ticker: str, details: dict,
+                                 score: float | None, date_str: str) -> None:
+        """Insert or update valuation detail for a ticker."""
+
+    @abstractmethod
+    def get_valuation_details(self) -> list[dict]:
+        """Get all valuation details."""
+
+    @abstractmethod
+    def get_valuation_detail(self, ticker: str) -> dict | None:
+        """Get valuation detail for a ticker."""

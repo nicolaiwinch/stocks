@@ -86,6 +86,16 @@ class SqliteStorage(StorageBackend):
                     updated TEXT
                 );
 
+                CREATE TABLE IF NOT EXISTS valuation_details (
+                    ticker TEXT PRIMARY KEY,
+                    forward_pe REAL,
+                    pb REAL,
+                    ev_ebitda REAL,
+                    fcf_yield REAL,
+                    score REAL,
+                    updated TEXT
+                );
+
                 CREATE TABLE IF NOT EXISTS sync_log (
                     id INTEGER PRIMARY KEY,
                     timestamp TEXT NOT NULL,
@@ -273,6 +283,35 @@ class SqliteStorage(StorageBackend):
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM momentum_details WHERE ticker = ?", (ticker,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    # --- Valuation details ---
+
+    def upsert_valuation_detail(self, ticker: str, details: dict,
+                                 score: float | None, date_str: str) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO valuation_details (ticker, forward_pe, pb, ev_ebitda, fcf_yield, score, updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(ticker) DO UPDATE SET
+                    forward_pe=excluded.forward_pe, pb=excluded.pb,
+                    ev_ebitda=excluded.ev_ebitda, fcf_yield=excluded.fcf_yield,
+                    score=excluded.score, updated=excluded.updated
+            """, (ticker, details.get("forward_pe"), details.get("pb"),
+                  details.get("ev_ebitda"), details.get("fcf_yield"), score, date_str))
+
+    def get_valuation_details(self) -> list[dict]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM valuation_details ORDER BY score DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_valuation_detail(self, ticker: str) -> dict | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM valuation_details WHERE ticker = ?", (ticker,)
             ).fetchone()
             return dict(row) if row else None
 
