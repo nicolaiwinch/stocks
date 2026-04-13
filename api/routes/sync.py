@@ -22,8 +22,9 @@ class BulkPushRequest(BaseModel):
     """Push locally-synced data to the server (for when yfinance is blocked)."""
     prices: list[dict]           # [{ticker, date, open, high, low, close, volume}, ...]
     fundamentals: list[dict]     # [{ticker, ...fundamentals}, ...]
-    scores: list[dict]           # [{ticker, date, momentum, total}, ...]
+    scores: list[dict]           # [{ticker, date, momentum, valuation, total}, ...]
     momentum_details: list[dict] # [{ticker, m6, m12, ...}, ...]
+    valuation_details: list[dict] = []  # [{ticker, forward_pe, pb, ev_ebitda, fcf_yield, score, updated}, ...]
 
 
 @router.post("/fetch")
@@ -121,13 +122,20 @@ def push_data(req: BulkPushRequest) -> dict:
 
     for s in req.scores:
         STORAGE.upsert_score(s["ticker"], s["date"],
-                             momentum=s.get("momentum"), total=s.get("total"))
+                             momentum=s.get("momentum"), valuation=s.get("valuation"),
+                             total=s.get("total"))
 
     for m in req.momentum_details:
         ticker = m.pop("ticker")
         score = m.pop("score", None)
         updated = m.pop("updated", date.today().isoformat())
         STORAGE.upsert_momentum_detail(ticker, m, score, updated)
+
+    for v in req.valuation_details:
+        ticker = v.pop("ticker")
+        score = v.pop("score", None)
+        updated = v.pop("updated", date.today().isoformat())
+        STORAGE.upsert_valuation_detail(ticker, v, score, updated)
 
     STORAGE.log_sync(
         timestamp=datetime.now().isoformat(),
@@ -140,4 +148,5 @@ def push_data(req: BulkPushRequest) -> dict:
         "fundamentals": len(req.fundamentals),
         "scores": len(req.scores),
         "momentum_details": len(req.momentum_details),
+        "valuation_details": len(req.valuation_details),
     }

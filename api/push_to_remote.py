@@ -49,6 +49,12 @@ def main():
     ).fetchall()]
     print(f"  Momentum details: {len(momentum)} rows")
 
+    # Valuation details
+    valuation = [dict(r) for r in conn.execute(
+        "SELECT * FROM valuation_details"
+    ).fetchall()]
+    print(f"  Valuation details: {len(valuation)} rows")
+
     conn.close()
 
     # Push in chunks (prices can be large)
@@ -62,6 +68,7 @@ def main():
             "fundamentals": fundamentals if i == 0 else [],
             "scores": scores if i == 0 else [],
             "momentum_details": momentum if i == 0 else [],
+            "valuation_details": valuation if i == 0 else [],
         }).encode()
 
         print(f"Pushing chunk {i // CHUNK + 1} ({len(chunk)} prices)...")
