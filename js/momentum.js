@@ -109,6 +109,55 @@ function valClass(val) {
   return val >= 0 ? 'score-high' : 'score-low';
 }
 
+let momentumData = [];
+let mSortKey = 'score';
+let mSortAsc = false;
+
+function sortMomentumData() {
+  const dir = mSortAsc ? 1 : -1;
+  const isText = mSortKey === 'ticker' || mSortKey === 'name';
+
+  momentumData.sort((a, b) => {
+    const av = a[mSortKey], bv = b[mSortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (isText) return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+}
+
+function renderMomentumRows(container) {
+  const tbody = container.querySelector('tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = momentumData.map(s => `
+    <tr data-ticker="${s.ticker}">
+      <td class="ticker">${s.ticker}</td>
+      <td class="name">${s.name}</td>
+      <td class="${valClass(s.m6)}">${fmt(s.m6)}</td>
+      <td class="${valClass(s.m12)}">${fmt(s.m12)}</td>
+      <td class="${valClass(s.m12_1)}">${fmt(s.m12_1)}</td>
+      <td class="${valClass(s.vs_ma200)}">${fmt(s.vs_ma200)}</td>
+      <td class="${valClass(s.ma50_vs_ma200)}">${fmt(s.ma50_vs_ma200)}</td>
+      <td class="score score-clickable ${scoreClass(s.score)}">${s.score != null ? s.score.toFixed(1) : '-'}</td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('tr[data-ticker]').forEach(row => {
+    row.addEventListener('click', () => showExplain(row.dataset.ticker));
+  });
+}
+
+function updateMomentumSortIndicators(container) {
+  container.querySelectorAll('th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.key === mSortKey) {
+      th.classList.add(mSortAsc ? 'sort-asc' : 'sort-desc');
+    }
+  });
+}
+
 async function renderMomentumTable() {
   const container = document.getElementById('momentumTable');
   if (!container) return;
@@ -116,9 +165,9 @@ async function renderMomentumTable() {
   container.innerHTML = '<div class="loading"><span class="spinner"></span> Loading momentum data...</div>';
 
   try {
-    const data = await api.getMomentum();
+    momentumData = await api.getMomentum();
 
-    if (!data.length) {
+    if (!momentumData.length) {
       container.innerHTML = '<p class="status-bar">No data yet — hit Sync All on the Home page first.</p>';
       return;
     }
@@ -134,9 +183,13 @@ async function renderMomentumTable() {
       { key: 'score', label: 'Score' },
     ];
 
-    const ths = headers.map(h => `<th>${h.label}</th>`).join('');
+    sortMomentumData();
 
-    const rows = data.map(s => `
+    const ths = headers.map(h =>
+      `<th data-key="${h.key}" class="sortable${h.key === mSortKey ? (mSortAsc ? ' sort-asc' : ' sort-desc') : ''}">${h.label}</th>`
+    ).join('');
+
+    const rows = momentumData.map(s => `
       <tr data-ticker="${s.ticker}">
         <td class="ticker">${s.ticker}</td>
         <td class="name">${s.name}</td>
@@ -157,7 +210,24 @@ async function renderMomentumTable() {
       <div id="explainPanel" class="explain-panel hidden"></div>
     `;
 
-    // Click score to show explanation
+    // Sort on header click
+    container.querySelectorAll('th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (key === mSortKey) {
+          mSortAsc = !mSortAsc;
+        } else {
+          mSortKey = key;
+          // Text columns: A-Z first. Number columns: highest first.
+          mSortAsc = (key === 'ticker' || key === 'name');
+        }
+        sortMomentumData();
+        renderMomentumRows(container);
+        updateMomentumSortIndicators(container);
+      });
+    });
+
+    // Click row to show explanation
     container.querySelectorAll('tr[data-ticker]').forEach(row => {
       row.addEventListener('click', () => showExplain(row.dataset.ticker));
     });

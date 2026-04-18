@@ -18,6 +18,24 @@
   white-space: nowrap;
 }
 
+.stock-table th.sortable:hover {
+  color: var(--text);
+}
+
+.stock-table th.sort-asc::after,
+.stock-table th.sort-desc::after {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.stock-table th.sort-asc::after {
+  content: '▲';
+}
+
+.stock-table th.sort-desc::after {
+  content: '▼';
+}
+
 .stock-table th:hover {
   color: var(--text);
 }

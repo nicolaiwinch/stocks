@@ -114,6 +114,62 @@ function valClass(val, inverted = true) {
   return val >= 0 ? 'score-high' : 'score-low';
 }
 
+// "Best first" default sort direction per column
+// Inverted metrics (lower = better): ascending. Others: descending for numbers, ascending for text.
+const SORT_DIR = {
+  ticker: 'asc', name: 'asc',
+  ev_ebitda: 'asc', forward_pe: 'asc', pb: 'asc',
+  fcf_yield: 'desc', score: 'desc',
+};
+
+let valuationData = [];
+let sortKey = 'score';
+let sortAsc = false;
+
+function sortData() {
+  const dir = sortAsc ? 1 : -1;
+  const isText = sortKey === 'ticker' || sortKey === 'name';
+
+  valuationData.sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (isText) return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+}
+
+function renderRows(container) {
+  const tbody = container.querySelector('tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = valuationData.map(s => `
+    <tr data-ticker="${s.ticker}">
+      <td class="ticker">${s.ticker}</td>
+      <td class="name">${s.name}</td>
+      <td>${fmtRatio(s.ev_ebitda)}</td>
+      <td>${fmtRatio(s.forward_pe)}</td>
+      <td>${fmtRatio(s.pb)}</td>
+      <td class="${valClass(s.fcf_yield, false)}">${fmtPct(s.fcf_yield)}</td>
+      <td class="score score-clickable ${scoreClass(s.score)}">${s.score != null ? s.score.toFixed(1) : '-'}</td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('tr[data-ticker]').forEach(row => {
+    row.addEventListener('click', () => showExplain(row.dataset.ticker));
+  });
+}
+
+function updateSortIndicators(container) {
+  container.querySelectorAll('th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.key === sortKey) {
+      th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+    }
+  });
+}
+
 async function renderValuationTable() {
   const container = document.getElementById('valuationTable');
   if (!container) return;
@@ -121,9 +177,9 @@ async function renderValuationTable() {
   container.innerHTML = '<div class="loading"><span class="spinner"></span> Loading valuation data...</div>';
 
   try {
-    const data = await api.getValuation();
+    valuationData = await api.getValuation();
 
-    if (!data.length) {
+    if (!valuationData.length) {
       container.innerHTML = '<p class="status-bar">No data yet — hit Sync All on the Home page first.</p>';
       return;
     }
@@ -138,9 +194,13 @@ async function renderValuationTable() {
       { key: 'score', label: 'Score' },
     ];
 
-    const ths = headers.map(h => `<th>${h.label}</th>`).join('');
+    const ths = headers.map(h =>
+      `<th data-key="${h.key}" class="sortable${h.key === sortKey ? (sortAsc ? ' sort-asc' : ' sort-desc') : ''}">${h.label}</th>`
+    ).join('');
 
-    const rows = data.map(s => `
+    sortData();
+
+    const rows = valuationData.map(s => `
       <tr data-ticker="${s.ticker}">
         <td class="ticker">${s.ticker}</td>
         <td class="name">${s.name}</td>
@@ -160,7 +220,23 @@ async function renderValuationTable() {
       <div id="valuationExplainPanel" class="explain-panel hidden"></div>
     `;
 
-    // Click score to show explanation
+    // Sort on header click
+    container.querySelectorAll('th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (key === sortKey) {
+          sortAsc = !sortAsc;
+        } else {
+          sortKey = key;
+          sortAsc = SORT_DIR[key] === 'asc';
+        }
+        sortData();
+        renderRows(container);
+        updateSortIndicators(container);
+      });
+    });
+
+    // Click row to show explanation
     container.querySelectorAll('tr[data-ticker]').forEach(row => {
       row.addEventListener('click', () => showExplain(row.dataset.ticker));
     });
