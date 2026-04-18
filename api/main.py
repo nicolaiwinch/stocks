@@ -13,6 +13,7 @@ from routes.prices import router as prices_router
 from routes.sync import router as sync_router
 from routes.momentum import router as momentum_router
 from routes.reports import router as reports_router
+from routes.valuation import router as valuation_router
 
 app = FastAPI(title="Stock Screener API", version="0.1.0")
 
@@ -28,6 +29,7 @@ app.include_router(prices_router)
 app.include_router(sync_router)
 app.include_router(momentum_router)
 app.include_router(reports_router)
+app.include_router(valuation_router)
 
 
 @app.get("/")

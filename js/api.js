@@ -51,6 +51,16 @@ export function explainMomentum(ticker) {
   return request(`/api/momentum/${encodeURIComponent(ticker)}/explain`);
 }
 
+// --- Valuation ---
+
+export function getValuation() {
+  return request('/api/valuation/');
+}
+
+export function explainValuation(ticker) {
+  return request(`/api/valuation/${encodeURIComponent(ticker)}/explain`);
+}
+
 // --- Prices ---
 
 export function getPrices(ticker, days = 365) {

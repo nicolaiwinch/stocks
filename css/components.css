@@ -243,6 +243,15 @@
   color: var(--text-muted);
 }
 
+.tag-inverted {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-body);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
 .score-clickable {
   cursor: pointer;
   text-decoration: underline;
