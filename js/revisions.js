@@ -223,10 +223,12 @@ async function renderRevisionsTable() {
     `).join('');
 
     container.innerHTML = `
-      <table class="stock-table">
-        <thead><tr>${ths}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="stock-table">
+          <thead><tr>${ths}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
       <div id="revisionsExplainPanel" class="explain-panel hidden"></div>
     `;
 

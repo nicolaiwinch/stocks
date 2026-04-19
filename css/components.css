@@ -812,12 +812,61 @@
   margin-bottom: 12px;
 }
 
+/* Table wrapper for horizontal scroll on mobile */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .container { padding: 8px; }
-  .stock-table td, .stock-table th { padding: 8px 6px; font-size: 13px; }
+
+  /* Nav */
+  .nav-inner { gap: 12px; padding: 0 8px; }
+  .nav-brand { font-size: 13px; }
+  .nav-links { gap: 2px; overflow-x: auto; flex-wrap: nowrap; }
+  .nav-link { padding: 6px 8px; font-size: 12px; white-space: nowrap; }
+
+  /* Tables */
+  .stock-table { font-size: 12px; min-width: 500px; }
+  .stock-table td, .stock-table th { padding: 6px 5px; font-size: 12px; }
+  .stock-table .name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stock-table .ticker { font-size: 12px; }
+
+  /* Detail panel full screen on mobile */
   .detail-panel { width: 100%; right: -100%; }
+
+  /* Header */
+  header { flex-wrap: wrap; gap: 8px; padding: 12px 0; }
+  header h1 { font-size: 17px; }
+  .header-actions { gap: 4px; }
+  .header-actions .btn { padding: 6px 10px; font-size: 12px; }
+
+  /* Tabs */
+  .segment-tabs { gap: 6px; }
+  .tab-row { gap: 4px; }
+  .segment-tab { padding: 4px 10px; font-size: 12px; }
+  .sector-row .segment-tab { font-size: 11px; padding: 3px 8px; }
+
+  /* Score model */
+  .factor-model-table { min-width: 400px; }
+  .section-title { font-size: 14px; }
+  .section-desc { font-size: 12px; }
+
+  /* Reports */
   .report-card { flex-direction: column; align-items: flex-start; gap: 8px; }
   .report-card-center { flex-wrap: wrap; gap: 8px; }
   .report-content .bull-bear { grid-template-columns: 1fr; }
+  .report-content .report-table { min-width: 400px; }
+
+  /* Explain panel */
+  .explain-panel { margin: 8px -8px; padding: 12px 8px; }
+  .explain-table { min-width: 380px; }
+
+  /* Add form */
+  .add-stock-form { gap: 6px; }
+  .add-stock-form input, .add-stock-form select { padding: 6px 8px; font-size: 12px; }
 }

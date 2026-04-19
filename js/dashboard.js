@@ -103,10 +103,12 @@ export function renderTable(onStockClick) {
 
   const table = document.getElementById('stockTable');
   table.innerHTML = `
-    <table class="stock-table">
-      <thead><tr>${ths}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <div class="table-scroll">
+      <table class="stock-table">
+        <thead><tr>${ths}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
   `;
 
   // Sort by clicking headers

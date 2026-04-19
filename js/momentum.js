@@ -225,10 +225,12 @@ async function renderMomentumTable() {
     `).join('');
 
     container.innerHTML = `
-      <table class="stock-table">
-        <thead><tr>${ths}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="stock-table">
+          <thead><tr>${ths}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
       <div id="explainPanel" class="explain-panel hidden"></div>
     `;
 

@@ -235,10 +235,12 @@ async function renderValuationTable() {
     `).join('');
 
     container.innerHTML = `
-      <table class="stock-table">
-        <thead><tr>${ths}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="stock-table">
+          <thead><tr>${ths}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
       <div id="valuationExplainPanel" class="explain-panel hidden"></div>
     `;
 
