@@ -65,8 +65,6 @@ def get_score_history(ticker: str, limit: int = 30) -> list[dict]:
 def add_stock(req: AddStockRequest) -> dict:
     """Add a stock to the watchlist."""
     ticker = req.ticker.upper()
-    if not ticker.endswith(".CO"):
-        ticker += ".CO"
     STORAGE.upsert_stock(ticker, req.name, req.segment)
     return {"ticker": ticker, "name": req.name, "segment": req.segment}
 

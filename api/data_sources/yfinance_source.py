@@ -91,18 +91,62 @@ def fetch_fundamentals(yf_ticker: str) -> dict:
     }
 
 
+def _yf_ticker_for(short_ticker: str) -> str:
+    """Map a stored ticker to its Yahoo Finance ticker.
+    Danish stocks need .CO suffix; others are used as-is."""
+    # Check if it's a known Danish stock
+    for yf_t in STOCKS:
+        if ticker_short(yf_t) == short_ticker:
+            return yf_t
+    # Not in STOCKS dict — if it looks like a plain US ticker, use as-is
+    return short_ticker
+
+
+def _fetch_one(yf_ticker, short, storage):
+    """Fetch prices + fundamentals for a single stock. Returns (prices_added, fundamentals_ok)."""
+    prices_count = 0
+    fundamentals_ok = False
+
+    rows = fetch_prices(yf_ticker)
+    if rows:
+        prices_count = storage.upsert_prices(short, rows)
+
+    fundamentals = fetch_fundamentals(yf_ticker)
+    storage.upsert_fundamentals(short, fundamentals)
+    fundamentals_ok = True
+
+    return prices_count, fundamentals_ok
+
+
 def fetch_all(storage, progress_callback=None) -> dict:
     """
     Fetch prices + fundamentals for all stocks and save to storage.
+    Includes both hardcoded STOCKS and any extra stocks added via the UI.
     Returns summary stats.
     """
-    total = len(STOCKS)
+    # Build list: (short_ticker, yf_ticker, name, segment)
+    fetch_list = []
+    seen = set()
+
+    # Hardcoded Danish stocks
+    for yf_ticker, (name, segment) in STOCKS.items():
+        short = ticker_short(yf_ticker)
+        fetch_list.append((short, yf_ticker, name, segment))
+        seen.add(short)
+
+    # Extra stocks from DB (user-added, e.g. US stocks)
+    for stock in storage.get_stocks():
+        short = stock["ticker"]
+        if short not in seen:
+            yf_ticker = _yf_ticker_for(short)
+            fetch_list.append((short, yf_ticker, stock["name"], stock["segment"]))
+            seen.add(short)
+
+    total = len(fetch_list)
     prices_count = 0
     fundamentals_count = 0
 
-    for i, (yf_ticker, (name, segment)) in enumerate(STOCKS.items(), 1):
-        short = ticker_short(yf_ticker)
-
+    for i, (short, yf_ticker, name, segment) in enumerate(fetch_list, 1):
         if progress_callback:
             progress_callback(f"[{i}/{total}] {short}")
 
@@ -110,15 +154,10 @@ def fetch_all(storage, progress_callback=None) -> dict:
         storage.upsert_stock(short, name, segment)
 
         try:
-            # Prices
-            rows = fetch_prices(yf_ticker)
-            if rows:
-                prices_count += storage.upsert_prices(short, rows)
-
-            # Fundamentals
-            fundamentals = fetch_fundamentals(yf_ticker)
-            storage.upsert_fundamentals(short, fundamentals)
-            fundamentals_count += 1
+            pc, ok = _fetch_one(yf_ticker, short, storage)
+            prices_count += pc
+            if ok:
+                fundamentals_count += 1
 
         except Exception as e:
             msg = str(e)
@@ -129,12 +168,10 @@ def fetch_all(storage, progress_callback=None) -> dict:
                 print(f"[{i}/{total}] Rate limited, waiting 10s...", file=sys.stderr)
                 time.sleep(10)
                 try:
-                    rows = fetch_prices(yf_ticker)
-                    if rows:
-                        prices_count += storage.upsert_prices(short, rows)
-                    fundamentals = fetch_fundamentals(yf_ticker)
-                    storage.upsert_fundamentals(short, fundamentals)
-                    fundamentals_count += 1
+                    pc, ok = _fetch_one(yf_ticker, short, storage)
+                    prices_count += pc
+                    if ok:
+                        fundamentals_count += 1
                     print(f"[{i}/{total}] {short} retry OK", file=sys.stderr)
                 except Exception as e2:
                     print(f"[{i}/{total}] {short} retry failed: {e2}", file=sys.stderr)

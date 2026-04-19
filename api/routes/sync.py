@@ -72,7 +72,7 @@ def recalculate_scores() -> dict:
     yf_map = {ticker_short(yf_t): yf_t for yf_t in STOCKS}
     for stock in stocks:
         ticker = stock["ticker"]
-        yf_ticker = yf_map.get(ticker)
+        yf_ticker = yf_map.get(ticker, ticker)  # fallback: use ticker as-is (US stocks)
         if yf_ticker:
             import sys, time
             print(f"  Revisions: {ticker}", file=sys.stderr)

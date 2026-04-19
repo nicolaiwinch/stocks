@@ -84,7 +84,9 @@ def get_db_data(ticker: str) -> dict:
 
 def get_yfinance_data(ticker: str) -> dict:
     """Fetch fresh data from yfinance for fields we don't store locally."""
-    yf_ticker = f"{ticker}.CO"
+    from stocks import STOCKS, ticker_short
+    yf_map = {ticker_short(yf_t): yf_t for yf_t in STOCKS}
+    yf_ticker = yf_map.get(ticker, ticker)
     t = yf.Ticker(yf_ticker)
     info = t.info
 
