@@ -92,9 +92,20 @@ header h1 {
 /* Segment filter tabs */
 .segment-tabs {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.tab-row {
+  display: flex;
+  gap: 6px;
   flex-wrap: wrap;
+}
+
+.sector-row .segment-tab {
+  font-size: 12px;
+  padding: 4px 10px;
 }
 
 .segment-tab {

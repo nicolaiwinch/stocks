@@ -5,6 +5,7 @@
 import { SEGMENTS } from './config.js';
 import {
   getFilteredStocks, getActiveSegment, setActiveSegment,
+  getActiveSector, setActiveSector, getSectors,
   getSortKey, setSortKey, isSortDesc, toggleSortDirection,
   setSelectedTicker,
 } from './state.js';
@@ -25,14 +26,37 @@ function fmtScore(score) {
 
 export function renderTabs(onFilter) {
   const container = document.getElementById('segmentTabs');
-  container.innerHTML = SEGMENTS.map(seg => {
+
+  // Segment row
+  const segHtml = SEGMENTS.map(seg => {
     const active = seg === getActiveSegment() ? 'active' : '';
     return `<button class="segment-tab ${active}" data-seg="${seg}">${seg}</button>`;
   }).join('');
 
-  container.querySelectorAll('.segment-tab').forEach(btn => {
+  // Sector row
+  const sectors = getSectors();
+  const secHtml = sectors.length > 1
+    ? sectors.map(sec => {
+        const active = sec === getActiveSector() ? 'active' : '';
+        return `<button class="segment-tab sector-tab ${active}" data-sec="${sec}">${sec}</button>`;
+      }).join('')
+    : '';
+
+  container.innerHTML = `
+    <div class="tab-row">${segHtml}</div>
+    ${secHtml ? `<div class="tab-row sector-row">${secHtml}</div>` : ''}
+  `;
+
+  container.querySelectorAll('[data-seg]').forEach(btn => {
     btn.addEventListener('click', () => {
       setActiveSegment(btn.dataset.seg);
+      onFilter();
+    });
+  });
+
+  container.querySelectorAll('[data-sec]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setActiveSector(btn.dataset.sec);
       onFilter();
     });
   });

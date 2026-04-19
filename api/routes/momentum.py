@@ -23,6 +23,7 @@ def get_momentum() -> list[dict]:
             "ticker": ticker,
             "name": stock["name"],
             "segment": stock["segment"],
+            "industry": stock.get("industry"),
             "m6": d.get("m6"),
             "m12": d.get("m12"),
             "m12_1": d.get("m12_1"),

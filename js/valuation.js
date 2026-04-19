@@ -3,6 +3,7 @@
  */
 
 import * as api from './api.js';
+import { getSectorsFromData, renderSectorTabs, filterBySector } from './filters.js';
 
 const FACTORS = [
   // Price multiples
@@ -122,9 +123,11 @@ const SORT_DIR = {
   fcf_yield: 'desc', score: 'desc',
 };
 
+let allValuationData = [];
 let valuationData = [];
 let sortKey = 'score';
 let sortAsc = false;
+let vActiveSector = 'All';
 
 function sortData() {
   const dir = sortAsc ? 1 : -1;
@@ -177,9 +180,28 @@ async function renderValuationTable() {
   container.innerHTML = '<div class="loading"><span class="spinner"></span> Loading valuation data...</div>';
 
   try {
-    valuationData = await api.getValuation();
+    allValuationData = await api.getValuation();
+    valuationData = filterBySector(allValuationData, vActiveSector);
 
-    if (!valuationData.length) {
+    // Render sector tabs
+    const sectors = getSectorsFromData(allValuationData);
+    const onSectorSelect = (sec) => {
+      vActiveSector = sec;
+      valuationData = filterBySector(allValuationData, vActiveSector);
+      sortData();
+      renderRows(container);
+      updateSortIndicators(container);
+      const statusEl = document.getElementById('valuationStatusBar');
+      if (statusEl) statusEl.textContent = `${valuationData.length} stocks`;
+      renderSectorTabs('valuationSectorTabs', sectors, vActiveSector, onSectorSelect);
+    };
+    renderSectorTabs('valuationSectorTabs', sectors, vActiveSector, onSectorSelect);
+
+    // Update status
+    const statusEl = document.getElementById('valuationStatusBar');
+    if (statusEl) statusEl.textContent = `${valuationData.length} stocks`;
+
+    if (!allValuationData.length) {
       container.innerHTML = '<p class="status-bar">No data yet — hit Sync All on the Home page first.</p>';
       return;
     }

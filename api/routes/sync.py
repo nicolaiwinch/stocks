@@ -28,6 +28,7 @@ class BulkPushRequest(BaseModel):
     momentum_details: list[dict] # [{ticker, m6, m12, ...}, ...]
     valuation_details: list[dict] = []  # [{ticker, forward_pe, pb, ev_ebitda, fcf_yield, score, updated}, ...]
     revisions_details: list[dict] = []  # [{ticker, rev_ratio_30d, eps_change_30d, eps_change_90d, num_analysts, score, updated}, ...]
+    stock_industries: list[dict] = []   # [{ticker, industry}, ...]
 
 
 @router.post("/fetch")
@@ -169,6 +170,13 @@ def push_data(req: BulkPushRequest) -> dict:
         updated = r.pop("updated", date.today().isoformat())
         STORAGE.upsert_revisions_detail(ticker, r, score, updated)
 
+    for si in req.stock_industries:
+        ticker = si["ticker"]
+        industry = si["industry"]
+        stock = STORAGE.get_stock(ticker)
+        if stock:
+            STORAGE.upsert_stock(ticker, stock["name"], stock["segment"], industry=industry)
+
     STORAGE.log_sync(
         timestamp=datetime.now().isoformat(),
         prices_rows=prices_count,
@@ -182,4 +190,5 @@ def push_data(req: BulkPushRequest) -> dict:
         "momentum_details": len(req.momentum_details),
         "valuation_details": len(req.valuation_details),
         "revisions_details": len(req.revisions_details),
+        "stock_industries": len(req.stock_industries),
     }

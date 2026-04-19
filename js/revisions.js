@@ -3,6 +3,7 @@
  */
 
 import * as api from './api.js';
+import { getSectorsFromData, renderSectorTabs, filterBySector } from './filters.js';
 
 const FACTORS = [
   // Estimate revisions
@@ -110,9 +111,11 @@ const SORT_DIR = {
   num_analysts: 'desc', score: 'desc',
 };
 
+let allRevisionsData = [];
 let revisionsData = [];
 let sortKey = 'score';
 let sortAsc = false;
+let rActiveSector = 'All';
 
 function sortData() {
   const dir = sortAsc ? 1 : -1;
@@ -165,9 +168,28 @@ async function renderRevisionsTable() {
   container.innerHTML = '<div class="loading"><span class="spinner"></span> Loading revisions data...</div>';
 
   try {
-    revisionsData = await api.getRevisions();
+    allRevisionsData = await api.getRevisions();
+    revisionsData = filterBySector(allRevisionsData, rActiveSector);
 
-    if (!revisionsData.length) {
+    // Render sector tabs
+    const sectors = getSectorsFromData(allRevisionsData);
+    const onSectorSelect = (sec) => {
+      rActiveSector = sec;
+      revisionsData = filterBySector(allRevisionsData, rActiveSector);
+      sortData();
+      renderRows(container);
+      updateSortIndicators(container);
+      const statusEl = document.getElementById('revisionsStatusBar');
+      if (statusEl) statusEl.textContent = `${revisionsData.length} stocks`;
+      renderSectorTabs('revisionsSectorTabs', sectors, rActiveSector, onSectorSelect);
+    };
+    renderSectorTabs('revisionsSectorTabs', sectors, rActiveSector, onSectorSelect);
+
+    // Update status
+    const statusEl = document.getElementById('revisionsStatusBar');
+    if (statusEl) statusEl.textContent = `${revisionsData.length} stocks`;
+
+    if (!allRevisionsData.length) {
       container.innerHTML = '<p class="status-bar">No data yet — hit Sync All on the Home page first.</p>';
       return;
     }

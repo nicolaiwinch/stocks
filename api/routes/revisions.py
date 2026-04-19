@@ -23,6 +23,7 @@ def get_revisions() -> list[dict]:
             "ticker": ticker,
             "name": stock["name"],
             "segment": stock["segment"],
+            "industry": stock.get("industry"),
             "rev_ratio_30d": d.get("rev_ratio_30d"),
             "eps_change_30d": d.get("eps_change_30d"),
             "eps_change_90d": d.get("eps_change_90d"),

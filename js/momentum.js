@@ -3,6 +3,7 @@
  */
 
 import * as api from './api.js';
+import { getSectorsFromData, renderSectorTabs, filterBySector } from './filters.js';
 
 const FACTORS = [
   // Price-based
@@ -109,9 +110,11 @@ function valClass(val) {
   return val >= 0 ? 'score-high' : 'score-low';
 }
 
+let allMomentumData = [];
 let momentumData = [];
 let mSortKey = 'score';
 let mSortAsc = false;
+let mActiveSector = 'All';
 
 function sortMomentumData() {
   const dir = mSortAsc ? 1 : -1;
@@ -165,9 +168,28 @@ async function renderMomentumTable() {
   container.innerHTML = '<div class="loading"><span class="spinner"></span> Loading momentum data...</div>';
 
   try {
-    momentumData = await api.getMomentum();
+    allMomentumData = await api.getMomentum();
+    momentumData = filterBySector(allMomentumData, mActiveSector);
 
-    if (!momentumData.length) {
+    // Render sector tabs
+    const sectors = getSectorsFromData(allMomentumData);
+    const onSectorSelect = (sec) => {
+      mActiveSector = sec;
+      momentumData = filterBySector(allMomentumData, mActiveSector);
+      sortMomentumData();
+      renderMomentumRows(container);
+      updateMomentumSortIndicators(container);
+      const statusEl = document.getElementById('momentumStatusBar');
+      if (statusEl) statusEl.textContent = `${momentumData.length} stocks`;
+      renderSectorTabs('momentumSectorTabs', sectors, mActiveSector, onSectorSelect);
+    };
+    renderSectorTabs('momentumSectorTabs', sectors, mActiveSector, onSectorSelect);
+
+    // Update status
+    const statusEl = document.getElementById('momentumStatusBar');
+    if (statusEl) statusEl.textContent = `${momentumData.length} stocks`;
+
+    if (!allMomentumData.length) {
       container.innerHTML = '<p class="status-bar">No data yet — hit Sync All on the Home page first.</p>';
       return;
     }

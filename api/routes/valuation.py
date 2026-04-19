@@ -27,6 +27,7 @@ def get_valuation() -> list[dict]:
             "ticker": ticker,
             "name": stock["name"],
             "segment": stock["segment"],
+            "industry": stock.get("industry"),
             "forward_pe": d.get("forward_pe"),
             "pb": d.get("pb"),
             "ev_ebitda": d.get("ev_ebitda"),
