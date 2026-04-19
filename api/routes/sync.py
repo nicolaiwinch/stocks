@@ -13,7 +13,9 @@ from config import STORAGE
 from data_sources.yfinance_source import fetch_all
 from scoring.momentum import calculate_momentum_metrics, score_momentum
 from scoring.valuation import score_valuation
+from scoring.revisions import fetch_revisions_data, score_revisions
 from scoring.total import calculate_total
+from stocks import STOCKS, ticker_short
 
 router = APIRouter(prefix="/api/sync", tags=["sync"])
 
@@ -25,6 +27,7 @@ class BulkPushRequest(BaseModel):
     scores: list[dict]           # [{ticker, date, momentum, valuation, total}, ...]
     momentum_details: list[dict] # [{ticker, m6, m12, ...}, ...]
     valuation_details: list[dict] = []  # [{ticker, forward_pe, pb, ev_ebitda, fcf_yield, score, updated}, ...]
+    revisions_details: list[dict] = []  # [{ticker, rev_ratio_30d, eps_change_30d, eps_change_90d, num_analysts, score, updated}, ...]
 
 
 @router.post("/fetch")
@@ -63,18 +66,41 @@ def recalculate_scores() -> dict:
 
     valuation_scores, valuation_details = score_valuation(all_fundamentals)
 
+    # --- Revisions ---
+    all_revisions = {}
+    yf_map = {ticker_short(yf_t): yf_t for yf_t in STOCKS}
+    for stock in stocks:
+        ticker = stock["ticker"]
+        yf_ticker = yf_map.get(ticker)
+        if yf_ticker:
+            import sys, time
+            print(f"  Revisions: {ticker}", file=sys.stderr)
+            rev_data = fetch_revisions_data(yf_ticker)
+            if rev_data:
+                all_revisions[ticker] = rev_data
+            time.sleep(1)  # Rate limit
+
+    if all_revisions:
+        revisions_scores, revisions_details = score_revisions(all_revisions)
+    else:
+        revisions_scores, revisions_details = {}, {}
+
     # --- Save scores + details ---
     count = 0
     for stock in stocks:
         ticker = stock["ticker"]
         mom = momentum_scores.get(ticker)
         val = valuation_scores.get(ticker)
-        total = calculate_total(mom, None, val)  # revisions not yet built
+        rev = revisions_scores.get(ticker)
+        total = calculate_total(mom, rev, val)
 
-        STORAGE.upsert_score(ticker, today, momentum=mom, valuation=val, total=total)
+        STORAGE.upsert_score(ticker, today, momentum=mom, valuation=val,
+                             revisions=rev, total=total)
         STORAGE.upsert_momentum_detail(ticker, all_momentum_metrics[ticker], mom, today)
         if ticker in valuation_details:
             STORAGE.upsert_valuation_detail(ticker, valuation_details[ticker], val, today)
+        if ticker in revisions_details:
+            STORAGE.upsert_revisions_detail(ticker, revisions_details[ticker], rev, today)
         count += 1
 
     return {"scores_calculated": count, "date": today}
@@ -137,6 +163,12 @@ def push_data(req: BulkPushRequest) -> dict:
         updated = v.pop("updated", date.today().isoformat())
         STORAGE.upsert_valuation_detail(ticker, v, score, updated)
 
+    for r in req.revisions_details:
+        ticker = r.pop("ticker")
+        score = r.pop("score", None)
+        updated = r.pop("updated", date.today().isoformat())
+        STORAGE.upsert_revisions_detail(ticker, r, score, updated)
+
     STORAGE.log_sync(
         timestamp=datetime.now().isoformat(),
         prices_rows=prices_count,
@@ -149,4 +181,5 @@ def push_data(req: BulkPushRequest) -> dict:
         "scores": len(req.scores),
         "momentum_details": len(req.momentum_details),
         "valuation_details": len(req.valuation_details),
+        "revisions_details": len(req.revisions_details),
     }

@@ -7,6 +7,7 @@ import { renderTabs, renderTable } from './dashboard.js';
 import { showDetail, hideDetail } from './stock-detail.js';
 import { renderMomentumPage } from './momentum.js';
 import { renderValuationPage } from './valuation.js';
+import { renderRevisionsPage } from './revisions.js';
 import { renderReportsPage } from './reports.js';
 import * as api from './api.js';
 
@@ -30,6 +31,7 @@ function navigateTo(page) {
   // Render page-specific content
   if (page === 'momentum') renderMomentumPage();
   if (page === 'valuation') renderValuationPage();
+  if (page === 'revisions') renderRevisionsPage();
   if (page === 'reports') renderReportsPage();
   updateSyncStatus();
 }

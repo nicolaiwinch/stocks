@@ -83,3 +83,18 @@ class StorageBackend(ABC):
     @abstractmethod
     def get_valuation_detail(self, ticker: str) -> dict | None:
         """Get valuation detail for a ticker."""
+
+    # --- Revisions details ---
+
+    @abstractmethod
+    def upsert_revisions_detail(self, ticker: str, details: dict,
+                                 score: float | None, date_str: str) -> None:
+        """Insert or update revisions detail for a ticker."""
+
+    @abstractmethod
+    def get_revisions_details(self) -> list[dict]:
+        """Get all revisions details."""
+
+    @abstractmethod
+    def get_revisions_detail(self, ticker: str) -> dict | None:
+        """Get revisions detail for a ticker."""

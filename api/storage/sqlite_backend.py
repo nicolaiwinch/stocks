@@ -96,6 +96,16 @@ class SqliteStorage(StorageBackend):
                     updated TEXT
                 );
 
+                CREATE TABLE IF NOT EXISTS revisions_details (
+                    ticker TEXT PRIMARY KEY,
+                    rev_ratio_30d REAL,
+                    eps_change_30d REAL,
+                    eps_change_90d REAL,
+                    num_analysts INTEGER,
+                    score REAL,
+                    updated TEXT
+                );
+
                 CREATE TABLE IF NOT EXISTS sync_log (
                     id INTEGER PRIMARY KEY,
                     timestamp TEXT NOT NULL,
@@ -312,6 +322,39 @@ class SqliteStorage(StorageBackend):
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM valuation_details WHERE ticker = ?", (ticker,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    # --- Revisions details ---
+
+    def upsert_revisions_detail(self, ticker: str, details: dict,
+                                 score: float | None, date_str: str) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                INSERT INTO revisions_details (ticker, rev_ratio_30d, eps_change_30d,
+                    eps_change_90d, num_analysts, score, updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(ticker) DO UPDATE SET
+                    rev_ratio_30d=excluded.rev_ratio_30d,
+                    eps_change_30d=excluded.eps_change_30d,
+                    eps_change_90d=excluded.eps_change_90d,
+                    num_analysts=excluded.num_analysts,
+                    score=excluded.score, updated=excluded.updated
+            """, (ticker, details.get("rev_ratio_30d"), details.get("eps_change_30d"),
+                  details.get("eps_change_90d"), details.get("num_analysts"),
+                  score, date_str))
+
+    def get_revisions_details(self) -> list[dict]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM revisions_details ORDER BY score DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_revisions_detail(self, ticker: str) -> dict | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM revisions_details WHERE ticker = ?", (ticker,)
             ).fetchone()
             return dict(row) if row else None
 

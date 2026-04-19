@@ -61,6 +61,16 @@ export function explainValuation(ticker) {
   return request(`/api/valuation/${encodeURIComponent(ticker)}/explain`);
 }
 
+// --- Revisions ---
+
+export function getRevisions() {
+  return request('/api/revisions/');
+}
+
+export function explainRevisions(ticker) {
+  return request(`/api/revisions/${encodeURIComponent(ticker)}/explain`);
+}
+
 // --- Prices ---
 
 export function getPrices(ticker, days = 365) {

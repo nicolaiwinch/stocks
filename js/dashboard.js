@@ -55,6 +55,7 @@ export function renderTable(onStockClick) {
     { key: 'segment', label: 'Segment' },
     { key: 'momentum', label: 'Momentum' },
     { key: 'valuation', label: 'Valuation' },
+    { key: 'revisions', label: 'Revisions' },
     { key: 'total', label: 'Total' },
   ];
 
@@ -71,6 +72,7 @@ export function renderTable(onStockClick) {
       <td><span class="segment-badge">${s.segment}</span></td>
       <td class="score ${scoreClass(s.momentum)}">${fmtScore(s.momentum)}</td>
       <td class="score ${scoreClass(s.valuation)}">${fmtScore(s.valuation)}</td>
+      <td class="score ${scoreClass(s.revisions)}">${fmtScore(s.revisions)}</td>
       <td class="score ${scoreClass(s.total)}">${fmtScore(s.total)}</td>
     </tr>
   `).join('');
