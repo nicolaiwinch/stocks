@@ -102,10 +102,11 @@ def delete_report(report_id: str) -> dict:
 @router.get("/skill/info")
 def get_skill_info() -> dict:
     """Return the deep-dive skill content and last modified date."""
-    # __file__ = api/routes/reports.py → go up 3 levels to repo root
+    # Check multiple locations: repo .claude/skills, or data dir (for Railway)
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     skill_paths = [
         os.path.join(repo_root, ".claude", "skills", "deep-dive.md"),
+        os.path.join(DATA_DIR, "deep-dive.md"),
     ]
 
     for skill_path in skill_paths:
@@ -131,3 +132,16 @@ def get_skill_info() -> dict:
             }
 
     raise HTTPException(status_code=404, detail="Skill file not found")
+
+
+class UpdateSkillRequest(BaseModel):
+    content: str
+
+
+@router.put("/skill/info")
+def update_skill_info(req: UpdateSkillRequest) -> dict:
+    """Update the skill file (for syncing to Railway)."""
+    skill_path = os.path.join(DATA_DIR, "deep-dive.md")
+    with open(skill_path, "w") as f:
+        f.write(req.content)
+    return {"status": "ok"}
