@@ -52,6 +52,40 @@
     <div id="segmentTabs" class="segment-tabs"></div>
     <div id="statusBar" class="status-bar">Loading...</div>
     <div id="stockTable"></div>
+
+    <section class="score-model-section" style="margin-top:24px">
+      <h2 class="section-title">Total Score — Sådan beregnes den</h2>
+      <table class="stock-table factor-model-table">
+        <thead>
+          <tr>
+            <th>Komponent</th>
+            <th>Vægt</th>
+            <th>Hvad den måler</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="factor-model-name">Momentum</td>
+            <td class="factor-model-weight">40%</td>
+            <td class="factor-model-desc">Kurstrend og styrke — baseret på afkast (6M, 12M, 12-1M) og glidende gennemsnit (MA50/MA200)</td>
+          </tr>
+          <tr>
+            <td class="factor-model-name">Valuation</td>
+            <td class="factor-model-weight">40%</td>
+            <td class="factor-model-desc">Værdiansættelse — baseret på EV/EBITDA, Forward P/E, P/B og FCF Yield. Lavere multipler = højere score</td>
+          </tr>
+          <tr>
+            <td class="factor-model-name">Revisions</td>
+            <td class="factor-model-weight">20%</td>
+            <td class="factor-model-desc">Analytiker-estimatændringer — stiger eller falder EPS-forventningerne? Baseret på revision ratio og EPS trend (30d/90d)</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="section-desc" style="margin-top:8px">
+        Hver komponent giver en score fra 1 (svageste) til 10 (stærkeste) baseret på percentil-rangering mod alle andre aktier.
+        Total Score er det vægtede gennemsnit. Hvis en komponent mangler data (f.eks. ingen analytikerdækning), omfordeles vægten til de øvrige.
+      </p>
+    </section>
   </div>
 
   <!-- Page: Momentum -->
