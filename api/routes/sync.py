@@ -149,7 +149,7 @@ def push_data(req: BulkPushRequest) -> dict:
     for s in req.scores:
         STORAGE.upsert_score(s["ticker"], s["date"],
                              momentum=s.get("momentum"), valuation=s.get("valuation"),
-                             total=s.get("total"))
+                             revisions=s.get("revisions"), total=s.get("total"))
 
     for m in req.momentum_details:
         ticker = m.pop("ticker")
