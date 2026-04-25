@@ -73,6 +73,8 @@ STOCKS = {
     "RTX.CO": ("RTX", "Small Cap"),
     "SKAKO.CO": ("SKAKO", "Small Cap"),
     "TIV.CO": ("Tivoli", "Small Cap"),
+    # Watchlist (non-Danish)
+    "TSM": ("Taiwan Semiconductor", "Watchlist"),
 }
 
 
